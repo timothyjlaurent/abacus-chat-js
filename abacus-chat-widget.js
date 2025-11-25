@@ -3,9 +3,13 @@
  * ABACUS.AI CHAT WIDGET - PRODUCTION-READY CLEAN VERSION
  * =====================================================
  * 
- * VERSION: 3.2.0 (Source Citation Removal + Workspace URL Support + Streaming)
+ * VERSION: 3.3.0 (Poppins Font Styling + Source Citation Removal + Workspace URL Support + Streaming)
  * LICENSE: MIT
  * LAST UPDATED: November 25, 2025
+ * NEW: Updated font styling to use Poppins with weights 400, 500, 600
+ * NEW: Changed all text colors to #1A1A1A for consistent styling
+ * NEW: Maintained 16px as the base font size throughout the widget
+ * NEW: Added Google Fonts import for Poppins font family
  * NEW: Automatically removes source citation anchor tags from bot responses
  * NEW: Added workspace URL configuration for custom deployments
  * NEW: Added streaming support with progressive text display
@@ -114,10 +118,10 @@
       backgroundColor: '#FFFFFF',
       userMessageColor: '#293ba8',
       botMessageColor: '#F3F4F6',
-      textColor: '#1F2937',
+      textColor: '#1A1A1A',
       buttonColor: '#FFFFFF',
       buttonHoverColor: '#F5F5F5',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      fontFamily: 'Poppins, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
     },
     width: '400px',
     height: '600px',
@@ -229,6 +233,8 @@
         position: fixed;
         z-index: 999999;
         font-family: ${theme.fontFamily};
+        font-size: 16px;
+        color: #1A1A1A;
       }
       
       .abacus-chat-widget-button {
@@ -313,6 +319,7 @@
         font-size: 18px;
         font-weight: 600;
         color: white;
+        font-family: ${theme.fontFamily};
       }
       
       .abacus-chat-widget-subtitle {
@@ -413,11 +420,13 @@
         border-radius: 12px;
         word-wrap: break-word;
         line-height: 1.5;
+        font-size: 16px;
+        font-family: ${theme.fontFamily};
       }
       
       .abacus-chat-widget-message.user .abacus-chat-widget-message-content {
         background: #f5f5f5;
-        color: #000000;
+        color: #1A1A1A;
         border-bottom-right-radius: 4px;
       }
       
@@ -442,6 +451,7 @@
         gap: 4px;
         transition: all 0.2s;
         align-self: flex-start;
+        font-family: ${theme.fontFamily};
       }
       
       .abacus-chat-widget-copy-btn:hover {
@@ -587,9 +597,15 @@
         border: 1px solid #D1D5DB;
         border-radius: 24px;
         outline: none;
-        font-size: 14px;
+        font-size: 16px;
         font-family: ${theme.fontFamily};
+        color: #1A1A1A;
         transition: border-color 0.2s;
+      }
+      
+      .abacus-chat-widget-input::placeholder {
+        color: #9CA3AF;
+        font-family: ${theme.fontFamily};
       }
       
       .abacus-chat-widget-input:focus {
@@ -757,7 +773,7 @@
         return;
       }
       
-      console.log('✅ Abacus Chat Widget v3.2.0 initialized successfully (Source Removal + Workspace URL + Streaming enabled)');
+      console.log('✅ Abacus Chat Widget v3.3.0 initialized successfully (Poppins Font + Source Removal + Workspace URL + Streaming enabled)');
       
       this.messages = [];
       this.conversationId = null;
@@ -775,6 +791,16 @@
     
     injectCSS() {
       const styleId = 'abacus-chat-widget-styles';
+      const fontLinkId = 'abacus-chat-widget-poppins-font';
+      
+      // Inject Google Fonts link for Poppins
+      if (!document.getElementById(fontLinkId)) {
+        const fontLink = document.createElement('link');
+        fontLink.id = fontLinkId;
+        fontLink.rel = 'stylesheet';
+        fontLink.href = 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap';
+        document.head.appendChild(fontLink);
+      }
       
       if (!document.getElementById(styleId)) {
         const style = document.createElement('style');
