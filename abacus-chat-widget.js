@@ -3,8 +3,10 @@
  * ABACUS.AI CHAT WIDGET - PRODUCTION-READY CLEAN VERSION
  * =====================================================
  * 
- * VERSION: 2.0.0 (Security-Focused)
+ * VERSION: 2.1.0 (Security-Focused + API Parameter Fix)
  * LICENSE: MIT
+ * LAST UPDATED: November 25, 2025
+ * FIX: Corrected API parameter naming from snake_case to camelCase (deploymentToken, deploymentId)
  * 
  * ⚠️ IMPORTANT: NO HARDCODED CREDENTIALS
  * This version contains NO hardcoded deployment tokens, API keys,
@@ -660,7 +662,7 @@
         return;
       }
       
-      console.log('✅ Abacus Chat Widget initialized successfully');
+      console.log('✅ Abacus Chat Widget v2.1.0 initialized successfully (API parameter fix applied)');
       
       this.messages = [];
       this.conversationId = null;
@@ -980,8 +982,8 @@
       }
       
       const url = new URL(this.config.apiUrl);
-      url.searchParams.append('deployment_token', this.config.deploymentToken);
-      url.searchParams.append('deployment_id', this.config.deploymentId);
+      url.searchParams.append('deploymentToken', this.config.deploymentToken);
+      url.searchParams.append('deploymentId', this.config.deploymentId);
       
       const response = await fetch(url.toString(), {
         method: 'POST',
