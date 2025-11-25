@@ -149,16 +149,24 @@
     return text;
   }
 
-  // Remove source citation anchor tags
+  // Remove source citation markdown links and anchor tags
   function removeSourceCitations(text) {
     if (!text) return text;
     
+    // STEP 1: Remove markdown links with "source" as the text (BEFORE markdown rendering)
+    // Pattern: [source](anything) or [SOURCE](anything) or [Source](anything)
+    // This must run BEFORE the markdown renderer converts them to anchor tags
+    const markdownSourcePattern = /\[source\]\([^)]+\)/gi;
+    text = text.replace(markdownSourcePattern, '');
+    
+    // STEP 2: Remove anchor tags with "source" as the text (fallback for already-rendered HTML)
     // Pattern to match: <a href="..." ...>source</a>
     // This regex matches anchor tags that contain only "source" as the text (case-insensitive)
     // It handles various attribute combinations and whitespace
     const sourceCitationPattern = /<a\s+[^>]*href=["'][^"']*["'][^>]*>\s*source\s*<\/a>/gi;
+    text = text.replace(sourceCitationPattern, '');
     
-    return text.replace(sourceCitationPattern, '');
+    return text;
   }
 
   // Simple markdown renderer
