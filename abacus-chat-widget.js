@@ -3,9 +3,10 @@
  * ABACUS.AI CHAT WIDGET - PRODUCTION-READY CLEAN VERSION
  * =====================================================
  * 
- * VERSION: 3.1.0 (Workspace URL Support + Streaming)
+ * VERSION: 3.2.0 (Source Citation Removal + Workspace URL Support + Streaming)
  * LICENSE: MIT
  * LAST UPDATED: November 25, 2025
+ * NEW: Automatically removes source citation anchor tags from bot responses
  * NEW: Added workspace URL configuration for custom deployments
  * NEW: Added streaming support with progressive text display
  * FIX: Corrected API parameter naming from snake_case to camelCase (deploymentToken, deploymentId)
@@ -148,9 +149,24 @@
     return text;
   }
 
+  // Remove source citation anchor tags
+  function removeSourceCitations(text) {
+    if (!text) return text;
+    
+    // Pattern to match: <a href="..." ...>source</a>
+    // This regex matches anchor tags that contain only "source" as the text (case-insensitive)
+    // It handles various attribute combinations and whitespace
+    const sourceCitationPattern = /<a\s+[^>]*href=["'][^"']*["'][^>]*>\s*source\s*<\/a>/gi;
+    
+    return text.replace(sourceCitationPattern, '');
+  }
+
   // Simple markdown renderer
   function renderMarkdown(text) {
     if (!text) return '';
+    
+    // Remove source citations first, before any processing
+    text = removeSourceCitations(text);
     
     let html = text
       .replace(/&/g, '&amp;')
@@ -733,7 +749,7 @@
         return;
       }
       
-      console.log('✅ Abacus Chat Widget v3.1.0 initialized successfully (Workspace URL + Streaming support enabled)');
+      console.log('✅ Abacus Chat Widget v3.2.0 initialized successfully (Source Removal + Workspace URL + Streaming enabled)');
       
       this.messages = [];
       this.conversationId = null;
@@ -1125,7 +1141,9 @@
               
               if (textChunk) {
                 fullText += textChunk;
-                contentEl.innerHTML = this.escapeHtml(fullText);
+                // Remove source citations during streaming display
+                const displayText = removeSourceCitations(fullText);
+                contentEl.innerHTML = this.escapeHtml(displayText);
                 contentEl.appendChild(cursorEl);
                 this.scrollToBottom();
               }
@@ -1147,7 +1165,9 @@
                   
                   if (textChunk) {
                     fullText += textChunk;
-                    contentEl.innerHTML = this.escapeHtml(fullText);
+                    // Remove source citations during streaming display
+                    const displayText = removeSourceCitations(fullText);
+                    contentEl.innerHTML = this.escapeHtml(displayText);
                     contentEl.appendChild(cursorEl);
                     this.scrollToBottom();
                   }
@@ -1162,7 +1182,9 @@
       
       // Remove cursor and finalize message
       cursorEl.remove();
-      this.finalizeStreamingMessage(messageEl, fullText);
+      // Remove source citations from final text
+      const cleanedText = removeSourceCitations(fullText);
+      this.finalizeStreamingMessage(messageEl, cleanedText);
     }
     
     async sendMessageWithSimulatedStreaming(message) {
@@ -1193,7 +1215,9 @@
       
       for (let i = 0; i < words.length; i++) {
         currentText += (i > 0 ? ' ' : '') + words[i];
-        contentEl.innerHTML = this.escapeHtml(currentText);
+        // Remove source citations during streaming display
+        const displayText = removeSourceCitations(currentText);
+        contentEl.innerHTML = this.escapeHtml(displayText);
         contentEl.appendChild(cursorEl);
         this.scrollToBottom();
         
@@ -1204,7 +1228,9 @@
       
       // Remove cursor and finalize message
       cursorEl.remove();
-      this.finalizeStreamingMessage(messageEl, text);
+      // Remove source citations from final text
+      const cleanedText = removeSourceCitations(text);
+      this.finalizeStreamingMessage(messageEl, cleanedText);
     }
     
     createStreamingBotMessage() {
