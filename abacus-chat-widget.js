@@ -3,11 +3,13 @@
  * ABACUS.AI CHAT WIDGET - PRODUCTION-READY CLEAN VERSION
  * =====================================================
  * 
- * VERSION: 3.0.0 (Streaming Support + Security-Focused)
+ * VERSION: 3.1.0 (Workspace URL Support + Streaming)
  * LICENSE: MIT
  * LAST UPDATED: November 25, 2025
+ * NEW: Added workspace URL configuration for custom deployments
  * NEW: Added streaming support with progressive text display
  * FIX: Corrected API parameter naming from snake_case to camelCase (deploymentToken, deploymentId)
+ * FIX: Updated API paths to use workspace-specific URLs (/api/getStreamingChatResponse)
  * 
  * ⚠️ IMPORTANT: NO HARDCODED CREDENTIALS
  * This version contains NO hardcoded deployment tokens, API keys,
@@ -31,7 +33,9 @@
  * Available data attributes:
  *   - data-deployment-id (REQUIRED)
  *   - data-deployment-token (REQUIRED)
- *   - data-api-endpoint (optional, defaults to Abacus.AI endpoint)
+ *   - data-workspace-url (optional, default: 'api.abacus.ai')
+ *       Example: 'genedx.abacus.ai' for workspace-specific deployments
+ *   - data-api-endpoint (optional, overrides workspace URL for regular API)
  *   - data-enable-streaming (optional, default: true)
  *   - data-simulate-streaming (optional, default: true - fallback if true streaming fails)
  *   - data-title (optional)
@@ -53,6 +57,7 @@
  *     AbacusChatWidget({
  *       deploymentToken: 'YOUR_TOKEN',
  *       deploymentId: 'YOUR_ID',
+ *       workspaceUrl: 'genedx.abacus.ai',  // Optional: specify your workspace
  *       title: 'My Assistant',
  *       position: 'bottom-right',
  *       enableStreaming: true,
@@ -92,8 +97,9 @@
     // ⚠️ NO CREDENTIALS HERE - Must be provided via data attributes or config
     deploymentToken: null,  // REQUIRED
     deploymentId: null,     // REQUIRED
-    apiUrl: 'https://api.abacus.ai/api/v0/getChatResponse',
-    streamingApiUrl: 'https://api.abacus.ai/api/v0/getStreamingChatResponse',
+    workspaceUrl: 'api.abacus.ai',  // Workspace URL (e.g., 'genedx.abacus.ai' or 'api.abacus.ai')
+    apiUrl: null,  // Will be built dynamically from workspaceUrl
+    streamingApiUrl: null,  // Will be built dynamically from workspaceUrl
     enableStreaming: true,  // NEW: Enable streaming by default
     simulateStreaming: true, // NEW: Simulate streaming if true streaming fails
     
@@ -633,6 +639,9 @@
     }
     
     // Optional attributes
+    if (script.hasAttribute('data-workspace-url')) {
+      config.workspaceUrl = script.getAttribute('data-workspace-url');
+    }
     if (script.hasAttribute('data-api-endpoint')) {
       config.apiUrl = script.getAttribute('data-api-endpoint');
     }
@@ -693,6 +702,20 @@
     return true;
   }
 
+  // Build API URLs from workspace URL
+  function buildApiUrls(config) {
+    // Only build URLs if they're not already set
+    if (!config.apiUrl) {
+      // For workspace URLs, use the new format: https://{workspace}/api/getChatResponse
+      config.apiUrl = `https://${config.workspaceUrl}/api/getChatResponse`;
+    }
+    
+    if (!config.streamingApiUrl) {
+      // For workspace URLs, use: https://{workspace}/api/getStreamingChatResponse
+      config.streamingApiUrl = `https://${config.workspaceUrl}/api/getStreamingChatResponse`;
+    }
+  }
+
   // Chat Widget Class
   class AbacusChatWidget {
     constructor(config = {}) {
@@ -701,13 +724,16 @@
         this.config.theme = { ...DEFAULT_CONFIG.theme, ...config.theme };
       }
       
+      // Build API URLs from workspace URL
+      buildApiUrls(this.config);
+      
       // Validate configuration
       if (!validateConfig(this.config)) {
         console.error('❌ Abacus Chat Widget failed to initialize due to missing credentials.');
         return;
       }
       
-      console.log('✅ Abacus Chat Widget v3.0.0 initialized successfully (Streaming support enabled)');
+      console.log('✅ Abacus Chat Widget v3.1.0 initialized successfully (Workspace URL + Streaming support enabled)');
       
       this.messages = [];
       this.conversationId = null;
