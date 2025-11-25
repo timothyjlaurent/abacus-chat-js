@@ -980,8 +980,8 @@
       }
       
       const url = new URL(this.config.apiUrl);
-      url.searchParams.append('deploymentToken', this.config.deploymentToken);
-      url.searchParams.append('deploymentId', this.config.deploymentId);
+      url.searchParams.append('deployment_token', this.config.deploymentToken);
+      url.searchParams.append('deployment_id', this.config.deploymentId);
       
       const response = await fetch(url.toString(), {
         method: 'POST',
