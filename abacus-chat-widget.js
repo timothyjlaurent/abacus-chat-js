@@ -3,9 +3,10 @@
  * ABACUS.AI CHAT WIDGET - PRODUCTION-READY CLEAN VERSION
  * =====================================================
  * 
- * VERSION: 2.1.0 (Security-Focused + API Parameter Fix)
+ * VERSION: 3.0.0 (Streaming Support + Security-Focused)
  * LICENSE: MIT
  * LAST UPDATED: November 25, 2025
+ * NEW: Added streaming support with progressive text display
  * FIX: Corrected API parameter naming from snake_case to camelCase (deploymentToken, deploymentId)
  * 
  * ⚠️ IMPORTANT: NO HARDCODED CREDENTIALS
@@ -23,13 +24,16 @@
  *           data-deployment-id="YOUR_DEPLOYMENT_ID" 
  *           data-deployment-token="YOUR_DEPLOYMENT_TOKEN"
  *           data-title="My Assistant"
- *           data-position="bottom-right">
+ *           data-position="bottom-right"
+ *           data-enable-streaming="true">
  *   </script>
  * 
  * Available data attributes:
  *   - data-deployment-id (REQUIRED)
  *   - data-deployment-token (REQUIRED)
  *   - data-api-endpoint (optional, defaults to Abacus.AI endpoint)
+ *   - data-enable-streaming (optional, default: true)
+ *   - data-simulate-streaming (optional, default: true - fallback if true streaming fails)
  *   - data-title (optional)
  *   - data-subtitle (optional)
  *   - data-placeholder (optional)
@@ -50,9 +54,22 @@
  *       deploymentToken: 'YOUR_TOKEN',
  *       deploymentId: 'YOUR_ID',
  *       title: 'My Assistant',
- *       position: 'bottom-right'
+ *       position: 'bottom-right',
+ *       enableStreaming: true,
+ *       simulateStreaming: true
  *     });
  *   </script>
+ * 
+ * =====================================================
+ * STREAMING SUPPORT:
+ * =====================================================
+ * 
+ * - enableStreaming: true (default) - Uses streaming API for progressive text display
+ * - simulateStreaming: true (default) - Falls back to simulated streaming if true streaming fails
+ * - Displays text progressively as it's generated
+ * - Shows a blinking cursor during streaming
+ * - Applies markdown rendering after streaming completes
+ * - Adds copy button after streaming completes
  * 
  * =====================================================
  * SECURITY NOTES:
@@ -76,6 +93,9 @@
     deploymentToken: null,  // REQUIRED
     deploymentId: null,     // REQUIRED
     apiUrl: 'https://api.abacus.ai/api/v0/getChatResponse',
+    streamingApiUrl: 'https://api.abacus.ai/api/v0/getStreamingChatResponse',
+    enableStreaming: true,  // NEW: Enable streaming by default
+    simulateStreaming: true, // NEW: Simulate streaming if true streaming fails
     
     // UI Configuration (safe defaults)
     title: 'Chat Assistant',
@@ -458,6 +478,25 @@
         margin: 4px 0;
       }
       
+      .abacus-chat-widget-streaming-cursor {
+        display: inline-block;
+        width: 2px;
+        height: 1em;
+        background: ${theme.primaryColor};
+        margin-left: 2px;
+        animation: blink 1s infinite;
+        vertical-align: text-bottom;
+      }
+      
+      @keyframes blink {
+        0%, 49% {
+          opacity: 1;
+        }
+        50%, 100% {
+          opacity: 0;
+        }
+      }
+      
       .abacus-chat-widget-message-time {
         font-size: 11px;
         opacity: 0.6;
@@ -597,6 +636,12 @@
     if (script.hasAttribute('data-api-endpoint')) {
       config.apiUrl = script.getAttribute('data-api-endpoint');
     }
+    if (script.hasAttribute('data-enable-streaming')) {
+      config.enableStreaming = script.getAttribute('data-enable-streaming') === 'true';
+    }
+    if (script.hasAttribute('data-simulate-streaming')) {
+      config.simulateStreaming = script.getAttribute('data-simulate-streaming') === 'true';
+    }
     if (script.hasAttribute('data-title')) {
       config.title = script.getAttribute('data-title');
     }
@@ -662,7 +707,7 @@
         return;
       }
       
-      console.log('✅ Abacus Chat Widget v2.1.0 initialized successfully (API parameter fix applied)');
+      console.log('✅ Abacus Chat Widget v3.0.0 initialized successfully (Streaming support enabled)');
       
       this.messages = [];
       this.conversationId = null;
@@ -935,31 +980,283 @@
       sendBtn.disabled = true;
       input.disabled = true;
       
-      this.showTyping();
-      
-      try {
-        const response = await this.callAbacusAPI(message);
-        
-        this.hideTyping();
-        
-        if (response && response.message) {
-          this.addMessage('bot', response.message);
-          
-          if (response.conversationId) {
-            this.conversationId = response.conversationId;
+      // Use streaming if enabled
+      if (this.config.enableStreaming) {
+        try {
+          await this.sendMessageWithStreaming(message);
+        } catch (error) {
+          console.error('Streaming error:', error);
+          // Fallback to non-streaming if streaming fails
+          if (this.config.simulateStreaming) {
+            console.log('Falling back to simulated streaming...');
+            await this.sendMessageWithSimulatedStreaming(message);
+          } else {
+            this.showError('Sorry, I encountered an error. Please try again.');
           }
-        } else {
-          this.showError('Sorry, I received an empty response. Please try again.');
         }
-      } catch (error) {
-        console.error('Abacus API Error:', error);
-        this.hideTyping();
-        this.showError('Sorry, I encountered an error. Please try again.');
-      } finally {
-        sendBtn.disabled = false;
-        input.disabled = false;
-        input.focus();
+      } else {
+        // Use traditional non-streaming approach
+        this.showTyping();
+        
+        try {
+          const response = await this.callAbacusAPI(message);
+          
+          this.hideTyping();
+          
+          if (response && response.message) {
+            this.addMessage('bot', response.message);
+            
+            if (response.conversationId) {
+              this.conversationId = response.conversationId;
+            }
+          } else {
+            this.showError('Sorry, I received an empty response. Please try again.');
+          }
+        } catch (error) {
+          console.error('Abacus API Error:', error);
+          this.hideTyping();
+          this.showError('Sorry, I encountered an error. Please try again.');
+        }
       }
+      
+      sendBtn.disabled = false;
+      input.disabled = false;
+      input.focus();
+    }
+    
+    async sendMessageWithStreaming(message) {
+      const conversationHistory = [];
+      
+      for (const msg of this.messages) {
+        conversationHistory.push({
+          is_user: msg.type === 'user',
+          text: msg.content
+        });
+      }
+      
+      const requestBody = {
+        messages: conversationHistory,
+        temperature: 0.0
+      };
+      
+      if (this.conversationId) {
+        requestBody.externalSessionId = this.conversationId;
+      }
+      
+      const url = new URL(this.config.streamingApiUrl);
+      url.searchParams.append('deploymentToken', this.config.deploymentToken);
+      url.searchParams.append('deploymentId', this.config.deploymentId);
+      
+      const response = await fetch(url.toString(), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Streaming API request failed: ${response.status} - ${errorText}`);
+      }
+      
+      // Create bot message element for streaming
+      const messageEl = this.createStreamingBotMessage();
+      const contentEl = messageEl.querySelector('.abacus-chat-widget-message-content');
+      const cursorEl = document.createElement('span');
+      cursorEl.className = 'abacus-chat-widget-streaming-cursor';
+      contentEl.appendChild(cursorEl);
+      
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let fullText = '';
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        buffer += chunk;
+        
+        // Try to parse streaming chunks (newline-delimited JSON)
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+        
+        for (const line of lines) {
+          if (line.trim()) {
+            try {
+              // Try parsing as JSON
+              const data = JSON.parse(line);
+              
+              // Extract text from various possible fields
+              let textChunk = '';
+              if (data.text) textChunk = data.text;
+              else if (data.token) textChunk = data.token;
+              else if (data.content) textChunk = data.content;
+              else if (data.delta) textChunk = data.delta;
+              
+              if (textChunk) {
+                fullText += textChunk;
+                contentEl.innerHTML = this.escapeHtml(fullText);
+                contentEl.appendChild(cursorEl);
+                this.scrollToBottom();
+              }
+              
+              // Update conversation ID if present
+              if (data.conversation_id || data.external_session_id) {
+                this.conversationId = data.conversation_id || data.external_session_id;
+              }
+            } catch (e) {
+              // Try SSE format
+              if (line.startsWith('data: ')) {
+                try {
+                  const jsonData = JSON.parse(line.substring(6));
+                  let textChunk = '';
+                  if (jsonData.text) textChunk = jsonData.text;
+                  else if (jsonData.token) textChunk = jsonData.token;
+                  else if (jsonData.content) textChunk = jsonData.content;
+                  else if (jsonData.delta) textChunk = jsonData.delta;
+                  
+                  if (textChunk) {
+                    fullText += textChunk;
+                    contentEl.innerHTML = this.escapeHtml(fullText);
+                    contentEl.appendChild(cursorEl);
+                    this.scrollToBottom();
+                  }
+                } catch (e2) {
+                  console.warn('Could not parse SSE data:', line);
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      // Remove cursor and finalize message
+      cursorEl.remove();
+      this.finalizeStreamingMessage(messageEl, fullText);
+    }
+    
+    async sendMessageWithSimulatedStreaming(message) {
+      // Fetch the full response first
+      const response = await this.callAbacusAPI(message);
+      
+      if (!response || !response.message) {
+        this.showError('Sorry, I received an empty response. Please try again.');
+        return;
+      }
+      
+      // Update conversation ID
+      if (response.conversationId) {
+        this.conversationId = response.conversationId;
+      }
+      
+      // Create bot message element for streaming
+      const messageEl = this.createStreamingBotMessage();
+      const contentEl = messageEl.querySelector('.abacus-chat-widget-message-content');
+      const cursorEl = document.createElement('span');
+      cursorEl.className = 'abacus-chat-widget-streaming-cursor';
+      contentEl.appendChild(cursorEl);
+      
+      // Simulate streaming by revealing text progressively
+      const text = response.message;
+      const words = text.split(' ');
+      let currentText = '';
+      
+      for (let i = 0; i < words.length; i++) {
+        currentText += (i > 0 ? ' ' : '') + words[i];
+        contentEl.innerHTML = this.escapeHtml(currentText);
+        contentEl.appendChild(cursorEl);
+        this.scrollToBottom();
+        
+        // Delay between words (faster for shorter words)
+        const delay = Math.min(50, Math.max(20, words[i].length * 5));
+        await this.sleep(delay);
+      }
+      
+      // Remove cursor and finalize message
+      cursorEl.remove();
+      this.finalizeStreamingMessage(messageEl, text);
+    }
+    
+    createStreamingBotMessage() {
+      const messagesContainer = document.getElementById('abacus-chat-messages');
+      const messageEl = document.createElement('div');
+      messageEl.className = 'abacus-chat-widget-message bot';
+      messageEl.id = 'abacus-streaming-message';
+      
+      const avatarEl = document.createElement('div');
+      avatarEl.className = 'abacus-chat-widget-message-avatar';
+      avatarEl.innerHTML = getDNAHelixSVG();
+      messageEl.appendChild(avatarEl);
+      
+      const wrapperEl = document.createElement('div');
+      wrapperEl.className = 'abacus-chat-widget-message-wrapper';
+      
+      const contentEl = document.createElement('div');
+      contentEl.className = 'abacus-chat-widget-message-content';
+      
+      wrapperEl.appendChild(contentEl);
+      messageEl.appendChild(wrapperEl);
+      
+      messagesContainer.appendChild(messageEl);
+      this.isTyping = true;
+      
+      return messageEl;
+    }
+    
+    finalizeStreamingMessage(messageEl, text) {
+      const wrapperEl = messageEl.querySelector('.abacus-chat-widget-message-wrapper');
+      const contentEl = messageEl.querySelector('.abacus-chat-widget-message-content');
+      
+      // Apply markdown rendering
+      contentEl.innerHTML = renderMarkdown(text);
+      
+      // Add copy button
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'abacus-chat-widget-copy-btn';
+      copyBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+        </svg>
+        <span class="copy-text">Copy</span>
+      `;
+      copyBtn.addEventListener('click', () => this.copyToClipboard(text, copyBtn));
+      wrapperEl.appendChild(copyBtn);
+      
+      // Add timestamp
+      const timeEl = document.createElement('div');
+      timeEl.className = 'abacus-chat-widget-message-time';
+      timeEl.textContent = this.formatTime(new Date());
+      wrapperEl.appendChild(timeEl);
+      
+      // Store in messages array
+      this.messages.push({
+        type: 'bot',
+        content: text,
+        timestamp: new Date()
+      });
+      
+      messageEl.id = '';
+      this.isTyping = false;
+      this.scrollToBottom();
+    }
+    
+    scrollToBottom() {
+      const messagesContainer = document.getElementById('abacus-chat-messages');
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+    
+    escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    
+    sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
     }
     
     async callAbacusAPI(message) {
