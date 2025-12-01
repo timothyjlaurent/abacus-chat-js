@@ -1,12 +1,12 @@
 # 🚀 Abacus Chat Widget
 
-### **Version 3.2.0** | Production-Ready | Security-First Design
+### **Version 3.4.0** | Production-Ready | Security-First Design
 
-A modern, feature-rich chat widget for integrating Abacus.AI conversational AI into any website. Features streaming responses, automatic source citation removal, customizable theming, workspace URL support, and a beautiful DNA helix avatar.
+A modern, feature-rich chat widget for integrating Abacus.AI conversational AI into any website. Features streaming responses, custom welcome messages, automatic source citation removal, customizable theming, workspace URL support, and a beautiful DNA helix avatar.
 
 [![CDN Available](https://img.shields.io/badge/CDN-Available-brightgreen)](#installation)
 [![Browser Support](https://img.shields.io/badge/Browsers-Modern-blue)](#browser-support)
-[![Version](https://img.shields.io/badge/Version-3.2.0-orange)](#version-history)
+[![Version](https://img.shields.io/badge/Version-3.4.0-orange)](#version-history)
 
 ---
 
@@ -29,6 +29,7 @@ A modern, feature-rich chat widget for integrating Abacus.AI conversational AI i
 ## ✨ Features
 
 - ✅ **Zero Dependencies** - Pure vanilla JavaScript
+- ✅ **Custom Welcome Messages** - Configurable welcome text with markdown support
 - ✅ **Streaming Responses** - Progressive text display like ChatGPT
 - ✅ **Automatic Source Citation Removal** - Filters out `<a>source</a>` tags from responses
 - ✅ **Workspace URL Support** - Works with custom Abacus.AI workspaces
@@ -134,6 +135,8 @@ Add to your theme's `footer.php` before `</body>`:
 | `title` | string | `"Chat Assistant"` | Widget header title |
 | `subtitle` | string | `""` | Widget header subtitle |
 | `placeholder` | string | `"Type your message..."` | Input field placeholder |
+| `welcomeMessage` | string | `"Hello! How can I help you today?"` | Welcome message shown when chat opens (supports markdown) |
+| `showWelcomeMessage` | boolean | `true` | Show/hide welcome message |
 | `position` | string | `"bottom-left"` | Position: `bottom-left`, `bottom-right`, `top-left`, `top-right` |
 | `width` | string | `"400px"` | Chat window width |
 | `height` | string | `"600px"` | Chat window height |
@@ -157,6 +160,8 @@ Add to your theme's `footer.php` before `</body>`:
         data-deployment-token="YOUR_DEPLOYMENT_TOKEN"
         data-deployment-id="YOUR_DEPLOYMENT_ID"
         data-title="Support Assistant"
+        data-welcome-message="Welcome! How can I help you today?"
+        data-show-welcome-message="true"
         data-position="bottom-right"
         data-primary-color="#FF5722">
 </script>
@@ -169,6 +174,8 @@ AbacusChatWidget({
   deploymentToken: 'YOUR_DEPLOYMENT_TOKEN',
   deploymentId: 'YOUR_DEPLOYMENT_ID',
   title: 'Support Assistant',
+  welcomeMessage: 'Welcome! **I\'m here to help.** Ask me anything!',
+  showWelcomeMessage: true,
   position: 'bottom-right',
   theme: {
     primaryColor: '#FF5722'
@@ -257,6 +264,53 @@ AbacusChatWidget({
   }
 });
 ```
+
+### Example 5: Custom Welcome Messages
+
+Welcome messages support markdown formatting and can be customized or disabled:
+
+```html
+<!-- Custom welcome message with markdown -->
+<script src="https://your-cdn.com/path/to/abacus-chat-widget.js"
+        data-deployment-token="YOUR_DEPLOYMENT_TOKEN"
+        data-deployment-id="YOUR_DEPLOYMENT_ID"
+        data-welcome-message="Welcome! **I'm here to help.** Feel free to ask me anything!"
+        data-show-welcome-message="true">
+</script>
+```
+
+```javascript
+// Multi-line welcome message with formatting
+AbacusChatWidget({
+  deploymentToken: 'YOUR_DEPLOYMENT_TOKEN',
+  deploymentId: 'YOUR_DEPLOYMENT_ID',
+  welcomeMessage: `👋 Hello! Welcome to **Customer Support**.
+
+I can help you with:
+- Product information
+- Technical support
+- Billing questions
+
+*Feel free to ask anything!*`,
+  showWelcomeMessage: true
+});
+```
+
+```javascript
+// Disable welcome message
+AbacusChatWidget({
+  deploymentToken: 'YOUR_DEPLOYMENT_TOKEN',
+  deploymentId: 'YOUR_DEPLOYMENT_ID',
+  showWelcomeMessage: false  // No welcome message
+});
+```
+
+> **Features:**
+> - ✅ Supports markdown: **bold**, *italic*, `code`, [links](url)
+> - ✅ Multi-line messages with proper formatting
+> - ✅ Emojis fully supported
+> - ✅ No copy button on welcome messages
+> - ✅ Not included in API conversation history
 
 ---
 
@@ -467,7 +521,36 @@ To disable streaming entirely:
 
 ## 📜 Version History
 
-### v3.2.0 (November 25, 2025) - **Current**
+### v3.4.0 (December 1, 2025) - **Current**
+
+**New Features:**
+- ✨ **Custom welcome message configuration** - Fully configurable welcome messages
+- ✨ `welcomeMessage` config option - Set custom text with markdown support
+- ✨ `showWelcomeMessage` config option - Enable/disable welcome message
+- ✨ Data attribute support - `data-welcome-message` and `data-show-welcome-message`
+- ✨ Welcome messages excluded from API conversation history
+- ✨ No copy button on welcome messages
+
+**Implementation:**
+- Added welcome message configuration to `DEFAULT_CONFIG`
+- Modified `addMessage()` to skip adding welcome messages to conversation history
+- Updated `init()` and `newConversation()` methods to use configurable welcome message
+- Added data attribute parsing for `data-welcome-message` and `data-show-welcome-message`
+- Updated console initialization message to v3.4.0
+
+---
+
+### v3.3.0 (November 2025)
+
+**New Features:**
+- ✨ **Poppins font styling** - Updated all text to use Poppins font family
+- ✨ Google Fonts integration for Poppins (weights 400, 500, 600)
+- ✨ Consistent text color (#1A1A1A) across all elements
+- ✨ Maintained 16px base font size
+
+---
+
+### v3.2.0 (November 25, 2025)
 
 **New Features:**
 - ✨ **Automatic source citation removal** - Filters `<a>source</a>` tags from bot responses
