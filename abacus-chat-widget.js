@@ -3,9 +3,12 @@
  * ABACUS.AI CHAT WIDGET - PRODUCTION-READY CLEAN VERSION
  * =====================================================
  * 
- * VERSION: 3.3.0 (Poppins Font Styling + Source Citation Removal + Workspace URL Support + Streaming)
+ * VERSION: 3.4.0 (Custom Welcome Message + Poppins Font + Source Removal + Workspace URL + Streaming)
  * LICENSE: MIT
- * LAST UPDATED: November 25, 2025
+ * LAST UPDATED: December 1, 2025
+ * NEW: Added configurable welcome message support (welcomeMessage, showWelcomeMessage)
+ * NEW: Welcome messages support markdown rendering
+ * NEW: Welcome messages can be customized or disabled completely
  * NEW: Updated font styling to use Poppins with weights 400, 500, 600
  * NEW: Changed all text colors to #1A1A1A for consistent styling
  * NEW: Maintained 16px as the base font size throughout the widget
@@ -43,6 +46,9 @@
  *   - data-api-endpoint (optional, overrides workspace URL for regular API)
  *   - data-enable-streaming (optional, default: true)
  *   - data-simulate-streaming (optional, default: true - fallback if true streaming fails)
+ *   - data-welcome-message (optional, default: 'Hello! How can I help you today?')
+ *       Supports markdown formatting for bold, italic, links, etc.
+ *   - data-show-welcome-message (optional, default: true)
  *   - data-title (optional)
  *   - data-subtitle (optional)
  *   - data-placeholder (optional)
@@ -66,7 +72,9 @@
  *       title: 'My Assistant',
  *       position: 'bottom-right',
  *       enableStreaming: true,
- *       simulateStreaming: true
+ *       simulateStreaming: true,
+ *       welcomeMessage: 'Welcome! I\'m here to help. Ask me anything!',  // Optional: customize
+ *       showWelcomeMessage: true  // Optional: set to false to disable
  *     });
  *   </script>
  * 
@@ -107,6 +115,10 @@
     streamingApiUrl: null,  // Will be built dynamically from workspaceUrl
     enableStreaming: true,  // NEW: Enable streaming by default
     simulateStreaming: true, // NEW: Simulate streaming if true streaming fails
+    
+    // Welcome Message Configuration
+    welcomeMessage: 'Hello! How can I help you today?',  // Default welcome message
+    showWelcomeMessage: true,  // Show welcome message by default
     
     // UI Configuration (safe defaults)
     title: 'Chat Assistant',
@@ -691,6 +703,12 @@
     if (script.hasAttribute('data-simulate-streaming')) {
       config.simulateStreaming = script.getAttribute('data-simulate-streaming') === 'true';
     }
+    if (script.hasAttribute('data-welcome-message')) {
+      config.welcomeMessage = script.getAttribute('data-welcome-message');
+    }
+    if (script.hasAttribute('data-show-welcome-message')) {
+      config.showWelcomeMessage = script.getAttribute('data-show-welcome-message') === 'true';
+    }
     if (script.hasAttribute('data-title')) {
       config.title = script.getAttribute('data-title');
     }
@@ -773,7 +791,7 @@
         return;
       }
       
-      console.log('✅ Abacus Chat Widget v3.3.0 initialized successfully (Poppins Font + Source Removal + Workspace URL + Streaming enabled)');
+      console.log('✅ Abacus Chat Widget v3.4.0 initialized successfully (Welcome Message + Poppins Font + Source Removal + Streaming)');
       
       this.messages = [];
       this.conversationId = null;
@@ -786,7 +804,11 @@
     init() {
       this.injectCSS();
       this.createWidget();
-      this.addMessage('bot', 'Hello! How can I help you today?', new Date(), true);
+      
+      // Show welcome message if enabled
+      if (this.config.showWelcomeMessage && this.config.welcomeMessage) {
+        this.addMessage('bot', this.config.welcomeMessage, new Date(), true);
+      }
     }
     
     injectCSS() {
@@ -888,7 +910,10 @@
       const messagesContainer = document.getElementById('abacus-chat-messages');
       messagesContainer.innerHTML = '';
       
-      this.addMessage('bot', 'Hello! How can I help you today?', new Date(), true);
+      // Show welcome message if enabled
+      if (this.config.showWelcomeMessage && this.config.welcomeMessage) {
+        this.addMessage('bot', this.config.welcomeMessage, new Date(), true);
+      }
     }
     
     toggleWidget() {
@@ -910,8 +935,11 @@
     }
     
     addMessage(type, content, timestamp = new Date(), isWelcomeMessage = false) {
-      const message = { type, content, timestamp };
-      this.messages.push(message);
+      // Don't add welcome messages to conversation history (won't be sent to API)
+      if (!isWelcomeMessage) {
+        const message = { type, content, timestamp };
+        this.messages.push(message);
+      }
       
       const messagesContainer = document.getElementById('abacus-chat-messages');
       const messageEl = document.createElement('div');
