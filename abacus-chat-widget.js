@@ -3,21 +3,24 @@
  * ABACUS.AI CHAT WIDGET - PRODUCTION-READY CLEAN VERSION
  * =====================================================
  * 
- * VERSION: 3.4.0 (Custom Welcome Message + Poppins Font + Source Removal + Workspace URL + Streaming)
+ * VERSION: 3.6.2 (Fixed Conversation ID Extraction)
  * LICENSE: MIT
- * LAST UPDATED: December 1, 2025
- * NEW: Added configurable welcome message support (welcomeMessage, showWelcomeMessage)
- * NEW: Welcome messages support markdown rendering
- * NEW: Welcome messages can be customized or disabled completely
- * NEW: Updated font styling to use Poppins with weights 400, 500, 600
- * NEW: Changed all text colors to #1A1A1A for consistent styling
- * NEW: Maintained 16px as the base font size throughout the widget
- * NEW: Added Google Fonts import for Poppins font family
- * NEW: Automatically removes source citation anchor tags from bot responses
- * NEW: Added workspace URL configuration for custom deployments
- * NEW: Added streaming support with progressive text display
- * FIX: Corrected API parameter naming from snake_case to camelCase (deploymentToken, deploymentId)
- * FIX: Updated API paths to use workspace-specific URLs (/api/getStreamingChatResponse)
+ * LAST UPDATED: December 2, 2025
+ * NEW: Extract deployment_conversation_id from result.deployment_conversation_id
+ * NEW: Extract text from response.result.messages[-1].text
+ * NEW: Added robust error handling for nested response structure
+ * KEPT: Fixed response parsing to handle snake_case API responses (deployment_conversation_id)
+ * KEPT: Extract deploymentConversationId from response (handles both snake_case and camelCase)
+ * KEPT: Improved logging for conversation ID extraction
+ * KEPT: Simplified conversation initialization - no upfront conversation creation
+ * KEPT: Auto-manage conversation ID lifecycle (null → extracted → reused)
+ * KEPT: Removed createConversation() - no longer needed
+ * KEPT: Migrated to Conversation API (getConversationResponse, getStreamingConversationResponse)
+ * KEPT: Simplified API calls - sends only current message (not full history)
+ * KEPT: Conversation state managed server-side via deploymentConversationId
+ * KEPT: Local message display for UI (history not sent to API)
+ * KEPT: Welcome message displayed locally (not sent to API)
+ * KEPT: All previous features (streaming, markdown, source removal, custom styling)
  * 
  * ⚠️ IMPORTANT: NO HARDCODED CREDENTIALS
  * This version contains NO hardcoded deployment tokens, API keys,
@@ -764,13 +767,13 @@
   function buildApiUrls(config) {
     // Only build URLs if they're not already set
     if (!config.apiUrl) {
-      // For workspace URLs, use the new format: https://{workspace}/api/getChatResponse
-      config.apiUrl = `https://${config.workspaceUrl}/api/getChatResponse`;
+      // For workspace URLs, use Conversation API: https://{workspace}/api/getConversationResponse
+      config.apiUrl = `https://${config.workspaceUrl}/api/getConversationResponse`;
     }
     
     if (!config.streamingApiUrl) {
-      // For workspace URLs, use: https://{workspace}/api/getStreamingChatResponse
-      config.streamingApiUrl = `https://${config.workspaceUrl}/api/getStreamingChatResponse`;
+      // For workspace URLs, use: https://{workspace}/api/getStreamingConversationResponse
+      config.streamingApiUrl = `https://${config.workspaceUrl}/api/getStreamingConversationResponse`;
     }
   }
 
@@ -791,10 +794,10 @@
         return;
       }
       
-      console.log('✅ Abacus Chat Widget v3.4.0 initialized successfully (Welcome Message + Poppins Font + Source Removal + Streaming)');
+      console.log('✅ Abacus Chat Widget v3.6.1 initialized successfully (Fixed Response Structure Parsing)');
       
       this.messages = [];
-      this.conversationId = null;
+      this.deploymentConversationId = null; // Will be extracted from first API response
       this.isTyping = false;
       this.isOpen = false;
       
@@ -903,9 +906,10 @@
       });
     }
     
-    newConversation() {
+    async newConversation() {
+      // Reset conversation state
       this.messages = [];
-      this.conversationId = null;
+      this.deploymentConversationId = null;
       
       const messagesContainer = document.getElementById('abacus-chat-messages');
       messagesContainer.innerHTML = '';
@@ -914,9 +918,11 @@
       if (this.config.showWelcomeMessage && this.config.welcomeMessage) {
         this.addMessage('bot', this.config.welcomeMessage, new Date(), true);
       }
+      
+      console.log('🔄 New conversation started - deploymentConversationId reset to null');
     }
     
-    toggleWidget() {
+    async toggleWidget() {
       const window = document.getElementById('abacus-chat-window');
       this.isOpen = !this.isOpen;
       
@@ -1109,10 +1115,6 @@
           
           if (response && response.message) {
             this.addMessage('bot', response.message);
-            
-            if (response.conversationId) {
-              this.conversationId = response.conversationId;
-            }
           } else {
             this.showError('Sorry, I received an empty response. Please try again.');
           }
@@ -1129,29 +1131,24 @@
     }
     
     async sendMessageWithStreaming(message) {
-      const conversationHistory = [];
-      
-      for (const msg of this.messages) {
-        conversationHistory.push({
-          is_user: msg.type === 'user',
-          text: msg.content
-        });
-      }
-      
+      // Build request body with camelCase parameters (all in body for streaming)
       const requestBody = {
-        messages: conversationHistory,
+        deploymentToken: this.config.deploymentToken,
+        deploymentId: this.config.deploymentId,
+        message: message,  // Send only current message (string)
         temperature: 0.0
       };
       
-      if (this.conversationId) {
-        requestBody.externalSessionId = this.conversationId;
+      // Include deploymentConversationId if we have one (null on first call)
+      if (this.deploymentConversationId) {
+        requestBody.deploymentConversationId = this.deploymentConversationId;
+        console.log('📤 Streaming message with existing deploymentConversationId:', this.deploymentConversationId);
+      } else {
+        requestBody.deploymentConversationId = null;
+        console.log('📤 Streaming first message with deploymentConversationId: null');
       }
       
-      const url = new URL(this.config.streamingApiUrl);
-      url.searchParams.append('deploymentToken', this.config.deploymentToken);
-      url.searchParams.append('deploymentId', this.config.deploymentId);
-      
-      const response = await fetch(url.toString(), {
+      const response = await fetch(this.config.streamingApiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1175,6 +1172,7 @@
       const decoder = new TextDecoder();
       let buffer = '';
       let fullText = '';
+      let conversationIdExtracted = false;
       
       while (true) {
         const { done, value } = await reader.read();
@@ -1194,39 +1192,113 @@
               // Try parsing as JSON
               const data = JSON.parse(line);
               
-              // Extract text from various possible fields
+              // Extract deploymentConversationId from result.deployment_conversation_id
+              if (data.result) {
+                const conversationId = data.result.deployment_conversation_id || data.result.deploymentConversationId;
+                
+                if (conversationId && !conversationIdExtracted && !this.deploymentConversationId) {
+                  this.deploymentConversationId = conversationId;
+                  conversationIdExtracted = true;
+                  console.log('✅ Extracted conversation ID from streaming response (result):', this.deploymentConversationId);
+                }
+              }
+              
+              // Extract text from response.result.messages[-1].text for streaming
               let textChunk = '';
-              if (data.text) textChunk = data.text;
-              else if (data.token) textChunk = data.token;
-              else if (data.content) textChunk = data.content;
-              else if (data.delta) textChunk = data.delta;
+              
+              // Check if this chunk has result.messages structure
+              if (data.result && data.result.messages && Array.isArray(data.result.messages) && data.result.messages.length > 0) {
+                const lastMessage = data.result.messages[data.result.messages.length - 1];
+                if (lastMessage.text) {
+                  textChunk = lastMessage.text;
+                  console.log('🔄 Streaming: Extracted text from result.messages[-1].text');
+                } else if (lastMessage.content) {
+                  textChunk = lastMessage.content;
+                  console.log('🔄 Streaming: Extracted text from result.messages[-1].content (fallback)');
+                }
+              }
+              // Fallback: try direct fields for progressive streaming chunks
+              else if (data.text) {
+                textChunk = data.text;
+                console.log('🔄 Streaming: Extracted text from data.text (direct field)');
+              } else if (data.token) {
+                textChunk = data.token;
+                console.log('🔄 Streaming: Extracted text from data.token (direct field)');
+              } else if (data.content) {
+                textChunk = data.content;
+                console.log('🔄 Streaming: Extracted text from data.content (direct field)');
+              } else if (data.delta) {
+                textChunk = data.delta;
+                console.log('🔄 Streaming: Extracted text from data.delta (direct field)');
+              }
               
               if (textChunk) {
-                fullText += textChunk;
+                // For structured responses, replace fullText; for chunks, append
+                if (data.result && data.result.messages) {
+                  fullText = textChunk; // Replace with full message
+                } else {
+                  fullText += textChunk; // Append chunk
+                }
+                
                 // Remove source citations during streaming display
                 const displayText = removeSourceCitations(fullText);
                 contentEl.innerHTML = this.escapeHtml(displayText);
                 contentEl.appendChild(cursorEl);
                 this.scrollToBottom();
               }
-              
-              // Update conversation ID if present
-              if (data.conversation_id || data.external_session_id) {
-                this.conversationId = data.conversation_id || data.external_session_id;
-              }
             } catch (e) {
               // Try SSE format
               if (line.startsWith('data: ')) {
                 try {
                   const jsonData = JSON.parse(line.substring(6));
+                  
+                  // Extract deploymentConversationId from top level of SSE data
+                  // API returns snake_case (deployment_conversation_id) even though we send camelCase
+                  const conversationId = jsonData.deployment_conversation_id || jsonData.deploymentConversationId;
+                  
+                  if (conversationId && !conversationIdExtracted && !this.deploymentConversationId) {
+                    this.deploymentConversationId = conversationId;
+                    conversationIdExtracted = true;
+                    console.log('✅ Extracted conversation ID from SSE streaming response (top level):', this.deploymentConversationId);
+                  }
+                  
+                  // Extract text from response.result.messages[-1].text for SSE streaming
                   let textChunk = '';
-                  if (jsonData.text) textChunk = jsonData.text;
-                  else if (jsonData.token) textChunk = jsonData.token;
-                  else if (jsonData.content) textChunk = jsonData.content;
-                  else if (jsonData.delta) textChunk = jsonData.delta;
+                  
+                  // Check if this SSE chunk has result.messages structure
+                  if (jsonData.result && jsonData.result.messages && Array.isArray(jsonData.result.messages) && jsonData.result.messages.length > 0) {
+                    const lastMessage = jsonData.result.messages[jsonData.result.messages.length - 1];
+                    if (lastMessage.text) {
+                      textChunk = lastMessage.text;
+                      console.log('🔄 SSE Streaming: Extracted text from result.messages[-1].text');
+                    } else if (lastMessage.content) {
+                      textChunk = lastMessage.content;
+                      console.log('🔄 SSE Streaming: Extracted text from result.messages[-1].content (fallback)');
+                    }
+                  }
+                  // Fallback: try direct fields for progressive streaming chunks
+                  else if (jsonData.text) {
+                    textChunk = jsonData.text;
+                    console.log('🔄 SSE Streaming: Extracted text from jsonData.text (direct field)');
+                  } else if (jsonData.token) {
+                    textChunk = jsonData.token;
+                    console.log('🔄 SSE Streaming: Extracted text from jsonData.token (direct field)');
+                  } else if (jsonData.content) {
+                    textChunk = jsonData.content;
+                    console.log('🔄 SSE Streaming: Extracted text from jsonData.content (direct field)');
+                  } else if (jsonData.delta) {
+                    textChunk = jsonData.delta;
+                    console.log('🔄 SSE Streaming: Extracted text from jsonData.delta (direct field)');
+                  }
                   
                   if (textChunk) {
-                    fullText += textChunk;
+                    // For structured responses, replace fullText; for chunks, append
+                    if (jsonData.result && jsonData.result.messages) {
+                      fullText = textChunk; // Replace with full message
+                    } else {
+                      fullText += textChunk; // Append chunk
+                    }
+                    
                     // Remove source citations during streaming display
                     const displayText = removeSourceCitations(fullText);
                     contentEl.innerHTML = this.escapeHtml(displayText);
@@ -1256,11 +1328,6 @@
       if (!response || !response.message) {
         this.showError('Sorry, I received an empty response. Please try again.');
         return;
-      }
-      
-      // Update conversation ID
-      if (response.conversationId) {
-        this.conversationId = response.conversationId;
       }
       
       // Create bot message element for streaming
@@ -1374,29 +1441,25 @@
     }
     
     async callAbacusAPI(message) {
-      const conversationHistory = [];
+      // Conversation API: deploymentId and deploymentToken as query params (camelCase)
+      const url = `${this.config.apiUrl}?deploymentId=${this.config.deploymentId}&deploymentToken=${this.config.deploymentToken}`;
       
-      for (const msg of this.messages) {
-        conversationHistory.push({
-          is_user: msg.type === 'user',
-          text: msg.content
-        });
-      }
-      
+      // Build request body with camelCase parameters
       const requestBody = {
-        messages: conversationHistory,
+        message: message,  // Send only current message (string)
         temperature: 0.0
       };
       
-      if (this.conversationId) {
-        requestBody.externalSessionId = this.conversationId;
+      // Include deploymentConversationId if we have one (null on first call)
+      if (this.deploymentConversationId) {
+        requestBody.deploymentConversationId = this.deploymentConversationId;
+        console.log('📤 Sending message with existing deploymentConversationId:', this.deploymentConversationId);
+      } else {
+        requestBody.deploymentConversationId = null;
+        console.log('📤 Sending first message with deploymentConversationId: null');
       }
       
-      const url = new URL(this.config.apiUrl);
-      url.searchParams.append('deploymentToken', this.config.deploymentToken);
-      url.searchParams.append('deploymentId', this.config.deploymentId);
-      
-      const response = await fetch(url.toString(), {
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1411,31 +1474,76 @@
       
       const data = await response.json();
       
+      console.log('📥 Raw API response:', JSON.stringify(data).substring(0, 200) + '...');
+      
+      // Check if response.result exists
+      if (!data.result) {
+        console.error('❌ response.result does not exist');
+        console.error('Response structure:', Object.keys(data));
+        throw new Error('Invalid response structure: missing result field');
+      }
+      
+      // STEP 1: Extract deploymentConversationId from result.deployment_conversation_id
+      console.log('🔍 Extracting from response.result.deployment_conversation_id...');
+      const conversationId = data.result.deployment_conversation_id || data.result.deploymentConversationId;
+      
+      if (conversationId) {
+        if (!this.deploymentConversationId) {
+          this.deploymentConversationId = conversationId;
+          console.log('✅ Extracted conversation ID:', this.deploymentConversationId);
+        }
+      } else {
+        console.warn('⚠️ Response did not include deployment_conversation_id in result');
+      }
+      
+      // STEP 2: Extract text from response.result.messages[-1].text
+      console.log('🔍 Extracting text from response.result.messages[-1].text...');
       let botMessage = '';
       
-      const result = data.result || data;
+      // Check if response.result.messages exists and is an array
+      if (!data.result.messages || !Array.isArray(data.result.messages)) {
+        console.error('❌ response.result.messages does not exist or is not an array');
+        console.error('result structure:', Object.keys(data.result));
+        throw new Error('Invalid response structure: result.messages is missing or not an array');
+      }
       
-      if (result.messages && Array.isArray(result.messages)) {
-        const lastBotMessage = result.messages
-          .filter(msg => !msg.is_user)
-          .pop();
+      // Check if messages array has at least one item
+      if (data.result.messages.length === 0) {
+        console.error('❌ response.result.messages array is empty');
+        throw new Error('Invalid response structure: messages array is empty');
+      }
+      
+      // Get the last message
+      const lastMessage = data.result.messages[data.result.messages.length - 1];
+      console.log('✅ Found last message in messages array (index:', data.result.messages.length - 1, ')');
+      
+      // Check if last message has text field
+      if (!lastMessage.text) {
+        console.warn('⚠️ Last message does not have text field');
+        console.error('Last message structure:', Object.keys(lastMessage));
         
-        if (lastBotMessage && lastBotMessage.text) {
-          botMessage = lastBotMessage.text;
+        // Fallback: try other possible fields
+        if (lastMessage.content) {
+          botMessage = lastMessage.content;
+          console.log('✅ Extracted text from lastMessage.content (fallback)');
+        } else if (lastMessage.message) {
+          botMessage = lastMessage.message;
+          console.log('✅ Extracted text from lastMessage.message (fallback)');
+        } else {
+          throw new Error('Invalid response structure: last message has no text, content, or message field');
         }
-      } else if (data.response) {
-        botMessage = data.response;
-      } else if (data.message) {
-        botMessage = data.message;
-      } else if (data.text) {
-        botMessage = data.text;
-      } else if (typeof data === 'string') {
-        botMessage = data;
+      } else {
+        botMessage = lastMessage.text;
+        console.log('✅ Extracted text from lastMessage.text:', botMessage.substring(0, 100) + '...');
+      }
+      
+      if (!botMessage) {
+        console.warn('⚠️ Empty message extracted from response');
+        throw new Error('Empty message extracted from response');
       }
       
       return {
-        message: botMessage,
-        conversationId: result.conversation_id || result.external_session_id || this.conversationId
+        message: botMessage
       };
     }
   }
