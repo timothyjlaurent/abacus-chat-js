@@ -3,11 +3,9 @@
  * ABACUS.AI CHAT WIDGET - PRODUCTION-READY CLEAN VERSION
  * =====================================================
  * 
- * VERSION: 3.6.3 (Fixed Scroll-to-Bottom Timing)
+ * VERSION: 3.6.2 (Fixed Conversation ID Extraction)
  * LICENSE: MIT
- * LAST UPDATED: December 3, 2025
- * NEW: Fixed scroll timing by wrapping scrollTop in requestAnimationFrame
- * FIXED: Welcome messages and all messages now properly scroll to bottom
+ * LAST UPDATED: December 2, 2025
  * NEW: Extract deployment_conversation_id from result.deployment_conversation_id
  * NEW: Extract text from response.result.messages[-1].text
  * NEW: Added robust error handling for nested response structure
@@ -384,7 +382,6 @@
         display: flex;
         flex-direction: column;
         gap: 16px;
-        justify-content: flex-end;
       }
       
       .abacus-chat-widget-message {
@@ -797,7 +794,7 @@
         return;
       }
       
-      console.log('✅ Abacus Chat Widget v3.6.3 initialized successfully (Fixed Scroll-to-Bottom Timing)');
+      console.log('✅ Abacus Chat Widget v3.6.1 initialized successfully (Fixed Response Structure Parsing)');
       
       this.messages = [];
       this.deploymentConversationId = null; // Will be extracted from first API response
@@ -1002,10 +999,7 @@
       }
       
       messagesContainer.appendChild(messageEl);
-      // Use requestAnimationFrame to ensure DOM is rendered before scrolling
-      requestAnimationFrame(() => {
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-      });
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
     
     copyToClipboard(text, button) {
@@ -1052,10 +1046,7 @@
       messageEl.appendChild(typingEl);
       
       messagesContainer.appendChild(messageEl);
-      // Use requestAnimationFrame to ensure DOM is rendered before scrolling
-      requestAnimationFrame(() => {
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-      });
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
       this.isTyping = true;
     }
     
@@ -1073,10 +1064,7 @@
       errorEl.className = 'abacus-chat-widget-error';
       errorEl.textContent = message;
       messagesContainer.appendChild(errorEl);
-      // Use requestAnimationFrame to ensure DOM is rendered before scrolling
-      requestAnimationFrame(() => {
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-      });
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
       
       setTimeout(() => errorEl.remove(), 5000);
     }
@@ -1439,10 +1427,7 @@
     
     scrollToBottom() {
       const messagesContainer = document.getElementById('abacus-chat-messages');
-      // Use requestAnimationFrame to ensure DOM is rendered before scrolling
-      requestAnimationFrame(() => {
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-      });
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
     
     escapeHtml(text) {
