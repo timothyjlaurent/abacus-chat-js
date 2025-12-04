@@ -895,7 +895,6 @@
             </div>
           </div>
           <div class="abacus-chat-widget-messages" id="abacus-chat-messages"></div>
-          ${this.config.footerText ? `<div class="abacus-chat-widget-footer">${this.config.footerText}</div>` : ''}
           <div class="abacus-chat-widget-input-container">
             <input 
               type="text" 
@@ -909,6 +908,7 @@
               </svg>
             </button>
           </div>
+          ${this.config.footerText ? `<div class="abacus-chat-widget-footer">${this.config.footerText}</div>` : ''}
         </div>
         <button class="abacus-chat-widget-button" id="abacus-chat-button">
           <svg width="24" height="22" viewBox="0 0 24 22" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1634,3 +1634,4 @@
   }
   
 })();
+eta
