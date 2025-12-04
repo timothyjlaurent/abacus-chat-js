@@ -3,9 +3,16 @@
  * ABACUS.AI CHAT WIDGET - PRODUCTION-READY CLEAN VERSION
  * =====================================================
  * 
- * VERSION: 3.6.2 (Fixed Conversation ID Extraction)
+ * VERSION: 3.6.5 (Added Configurable Footer Text)
  * LICENSE: MIT
- * LAST UPDATED: December 2, 2025
+ * LAST UPDATED: December 4, 2025
+ * NEW: Added configurable footer text feature
+ * NEW: Added footerText config option (optional, empty by default)
+ * NEW: Footer displays at bottom of chat window with 9px font size
+ * NEW: Footer only shows when footerText is provided
+ * KEPT: Fixed scroll behavior using spacer div approach
+ * KEPT: Messages appear at bottom with little content AND scroll works with overflow
+ * KEPT: Removed justify-content: flex-end and added flex-grow spacer div
  * NEW: Extract deployment_conversation_id from result.deployment_conversation_id
  * NEW: Extract text from response.result.messages[-1].text
  * NEW: Added robust error handling for nested response structure
@@ -122,6 +129,9 @@
     // Welcome Message Configuration
     welcomeMessage: 'Hello! How can I help you today?',  // Default welcome message
     showWelcomeMessage: true,  // Show welcome message by default
+    
+    // Footer Configuration
+    footerText: '',  // Footer text (optional, empty by default)
     
     // UI Configuration (safe defaults)
     title: 'Chat Assistant',
@@ -382,6 +392,11 @@
         display: flex;
         flex-direction: column;
         gap: 16px;
+      }
+      
+      .abacus-chat-widget-spacer {
+        flex-grow: 1;
+        flex-shrink: 0;
       }
       
       .abacus-chat-widget-message {
@@ -666,6 +681,17 @@
         font-size: 13px;
       }
       
+      .abacus-chat-widget-footer {
+        font-size: 9px;
+        font-family: ${theme.fontFamily};
+        text-align: center;
+        padding: 6px;
+        line-height: 1.2;
+        color: #666;
+        border-top: 1px solid #eee;
+        background: white;
+      }
+      
       @media (max-width: 480px) {
         .abacus-chat-widget-window {
           width: calc(100vw - 40px) !important;
@@ -711,6 +737,9 @@
     }
     if (script.hasAttribute('data-show-welcome-message')) {
       config.showWelcomeMessage = script.getAttribute('data-show-welcome-message') === 'true';
+    }
+    if (script.hasAttribute('data-footer-text')) {
+      config.footerText = script.getAttribute('data-footer-text');
     }
     if (script.hasAttribute('data-title')) {
       config.title = script.getAttribute('data-title');
@@ -794,7 +823,7 @@
         return;
       }
       
-      console.log('✅ Abacus Chat Widget v3.6.1 initialized successfully (Fixed Response Structure Parsing)');
+      console.log('✅ Abacus Chat Widget v3.6.5 initialized successfully (Added Configurable Footer Text)');
       
       this.messages = [];
       this.deploymentConversationId = null; // Will be extracted from first API response
@@ -807,6 +836,13 @@
     init() {
       this.injectCSS();
       this.createWidget();
+      
+      // Add spacer div to push messages to bottom when there's little content
+      const messagesContainer = document.getElementById('abacus-chat-messages');
+      const spacer = document.createElement('div');
+      spacer.className = 'abacus-chat-widget-spacer';
+      spacer.id = 'abacus-chat-spacer';
+      messagesContainer.appendChild(spacer);
       
       // Show welcome message if enabled
       if (this.config.showWelcomeMessage && this.config.welcomeMessage) {
@@ -859,6 +895,7 @@
             </div>
           </div>
           <div class="abacus-chat-widget-messages" id="abacus-chat-messages"></div>
+          ${this.config.footerText ? `<div class="abacus-chat-widget-footer">${this.config.footerText}</div>` : ''}
           <div class="abacus-chat-widget-input-container">
             <input 
               type="text" 
@@ -913,6 +950,12 @@
       
       const messagesContainer = document.getElementById('abacus-chat-messages');
       messagesContainer.innerHTML = '';
+      
+      // Re-add spacer div to push messages to bottom when there's little content
+      const spacer = document.createElement('div');
+      spacer.className = 'abacus-chat-widget-spacer';
+      spacer.id = 'abacus-chat-spacer';
+      messagesContainer.appendChild(spacer);
       
       // Show welcome message if enabled
       if (this.config.showWelcomeMessage && this.config.welcomeMessage) {
@@ -999,7 +1042,10 @@
       }
       
       messagesContainer.appendChild(messageEl);
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      // Use requestAnimationFrame to ensure DOM is rendered before scrolling
+      requestAnimationFrame(() => {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      });
     }
     
     copyToClipboard(text, button) {
@@ -1046,7 +1092,10 @@
       messageEl.appendChild(typingEl);
       
       messagesContainer.appendChild(messageEl);
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      // Use requestAnimationFrame to ensure DOM is rendered before scrolling
+      requestAnimationFrame(() => {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      });
       this.isTyping = true;
     }
     
@@ -1064,7 +1113,10 @@
       errorEl.className = 'abacus-chat-widget-error';
       errorEl.textContent = message;
       messagesContainer.appendChild(errorEl);
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      // Use requestAnimationFrame to ensure DOM is rendered before scrolling
+      requestAnimationFrame(() => {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      });
       
       setTimeout(() => errorEl.remove(), 5000);
     }
@@ -1427,7 +1479,10 @@
     
     scrollToBottom() {
       const messagesContainer = document.getElementById('abacus-chat-messages');
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      // Use requestAnimationFrame to ensure DOM is rendered before scrolling
+      requestAnimationFrame(() => {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      });
     }
     
     escapeHtml(text) {

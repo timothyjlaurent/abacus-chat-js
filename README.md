@@ -1,12 +1,12 @@
 # 🚀 Abacus Chat Widget
 
-### **Version 3.4.0** | Production-Ready | Security-First Design
+### **Version 3.6.5** | Production-Ready | Security-First Design
 
 A modern, feature-rich chat widget for integrating Abacus.AI conversational AI into any website. Features streaming responses, custom welcome messages, automatic source citation removal, customizable theming, workspace URL support, and a beautiful DNA helix avatar.
 
 [![CDN Available](https://img.shields.io/badge/CDN-Available-brightgreen)](#installation)
 [![Browser Support](https://img.shields.io/badge/Browsers-Modern-blue)](#browser-support)
-[![Version](https://img.shields.io/badge/Version-3.4.0-orange)](#version-history)
+[![Version](https://img.shields.io/badge/Version-3.6.5-orange)](#version-history)
 
 ---
 
@@ -137,6 +137,7 @@ Add to your theme's `footer.php` before `</body>`:
 | `placeholder` | string | `"Type your message..."` | Input field placeholder |
 | `welcomeMessage` | string | `"Hello! How can I help you today?"` | Welcome message shown when chat opens (supports markdown) |
 | `showWelcomeMessage` | boolean | `true` | Show/hide welcome message |
+| `footerText` | string | `""` | Optional footer text at bottom of chat (9px, compact) |
 | `position` | string | `"bottom-left"` | Position: `bottom-left`, `bottom-right`, `top-left`, `top-right` |
 | `width` | string | `"400px"` | Chat window width |
 | `height` | string | `"600px"` | Chat window height |
@@ -162,6 +163,7 @@ Add to your theme's `footer.php` before `</body>`:
         data-title="Support Assistant"
         data-welcome-message="Welcome! How can I help you today?"
         data-show-welcome-message="true"
+        data-footer-text="Powered by Abacus.AI"
         data-position="bottom-right"
         data-primary-color="#FF5722">
 </script>
@@ -521,7 +523,47 @@ To disable streaming entirely:
 
 ## 📜 Version History
 
-### v3.4.0 (December 1, 2025) - **Current**
+### v3.6.5 (December 4, 2025) - **Current**
+
+**New Features:**
+- ✨ **Footer text feature** - Optional footer text at bottom of chat
+- ✨ `footerText` config option - Compact footer with 9px font size
+- ✨ Data attribute support - `data-footer-text`
+
+**Implementation:**
+- Added footer text configuration to `DEFAULT_CONFIG`
+- Compact footer styling with reduced padding and line-height
+- Dynamic footer insertion when `footerText` is provided
+
+---
+
+### v3.6.4 (December 2025)
+
+**Bug Fixes:**
+- 🐛 **Spacer div scroll improvement** - Enhanced scroll behavior with spacer elements
+- Improved scrolling reliability in chat window
+
+---
+
+### v3.6.3 (December 2025)
+
+**Bug Fixes:**
+- 🐛 **Scroll fixes** - Fixed scroll-to-bottom timing issues
+- Wrapped `scrollTop` assignments in `requestAnimationFrame()` for proper DOM rendering
+- Applied to `addMessage()`, `showTyping()`, `showError()`, and `scrollToBottom()` functions
+
+---
+
+### v3.5.0 (December 2025)
+
+**New Features:**
+- ✨ **Conversation API migration** - Updated to use Conversation API endpoints
+- ✨ `deployment_conversation_id` handling for conversation continuity
+- API endpoint changes for improved conversation management
+
+---
+
+### v3.4.0 (December 1, 2025)
 
 **New Features:**
 - ✨ **Custom welcome message configuration** - Fully configurable welcome messages
@@ -536,7 +578,6 @@ To disable streaming entirely:
 - Modified `addMessage()` to skip adding welcome messages to conversation history
 - Updated `init()` and `newConversation()` methods to use configurable welcome message
 - Added data attribute parsing for `data-welcome-message` and `data-show-welcome-message`
-- Updated console initialization message to v3.4.0
 
 ---
 
@@ -715,6 +756,6 @@ See LICENSE file for full details.
 
 ---
 
-*Last Updated: November 25, 2025 | Version 3.2.0*
+*Last Updated: December 4, 2025 | Version 3.6.5*
 
 **Note:** This README uses placeholder values (`YOUR_DEPLOYMENT_TOKEN`, `YOUR_DEPLOYMENT_ID`, `yourcompany.abacus.ai`) for security. Replace these with your actual credentials from the Abacus.AI dashboard before deployment.
